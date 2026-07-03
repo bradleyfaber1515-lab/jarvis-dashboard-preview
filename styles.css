@@ -1,0 +1,830 @@
+/* ============================================================================
+   styles.css — Meeko Command Console
+   Implements JARVIS-Command-Console-UIUX-Spec-v1.md §3–§10
+   ========================================================================== */
+
+/* ---- Reset / base ------------------------------------------------------ */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+  color: var(--text-primary);
+  background: var(--bg-void);
+  overflow: hidden; /* the shell owns scrolling per region */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+/* screen-reader-only live region (§10) */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(63, 214, 255, 0.18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(63, 214, 255, 0.32); }
+
+/* Focus states — §10: :focus-visible only, 2px cyan, 2px offset */
+:focus-visible {
+  outline: 2px solid var(--cyan-500);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   §4 AMBIENT BACKGROUND SYSTEM
+   ========================================================================== */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--bg-void);
+  overflow: hidden;
+}
+
+/* 4.2 Grid texture — 1px lines every 48px, barely visible */
+.ambient__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(63, 214, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(63, 214, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* 4.3 Scanline overlay — 1px lines every 3px, opacity 0.4, 8s drift */
+.ambient__scanline {
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(63, 214, 255, 0.02) 0px,
+    rgba(63, 214, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: scanline-drift 8s linear infinite; /* §7.6 */
+}
+
+/* 4.4 Radar sweep — single conic sweep, bottom-right, 12s, opacity ceiling 0.06 */
+.ambient__radar {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  bottom: -200px;
+  right: -200px;
+  border-radius: 50%;
+  opacity: 0.06;
+  background: conic-gradient(
+    from 0deg,
+    rgba(63, 214, 255, 0.10) 0deg,
+    rgba(63, 214, 255, 0.04) 30deg,
+    transparent 45deg,
+    transparent 360deg
+  );
+  animation: radar-spin 12s linear infinite; /* §7.1 */
+}
+
+/* 4.5 Particle drift — canvas (see app.js) */
+.ambient__particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================================
+   §3.1 APP SHELL — 3-column grid
+   ========================================================================== */
+.shell {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: var(--rail-l-width) 1fr var(--rail-r-width);
+  grid-template-rows: var(--topbar-height) 1fr var(--footer-height);
+  grid-template-areas:
+    "topbar topbar topbar"
+    "rail-l chat   rail-r"
+    "footer footer footer";
+}
+
+/* Left rail is hidden in Phase 1 (§3.1) — collapse its column to keep chat wide */
+.shell {
+  grid-template-columns: 0 1fr var(--rail-r-width);
+}
+.rail-l { display: none; grid-area: rail-l; }
+.rail-l__empty {
+  padding: var(--panel-pad);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+.rail-l__title {
+  font-family: var(--font-display);
+  font-size: var(--text-label);
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+.rail-l__sub { font-size: var(--text-meta); font-family: var(--font-ui); }
+
+/* ============================================================================
+   §5 TOP STATUS BAR
+   ========================================================================== */
+.topbar {
+  grid-area: topbar;
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  background: var(--bg-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+/* 5.1 Wordmark */
+.topbar__wordmark { display: flex; align-items: center; gap: var(--space-3); }
+.wordmark__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cyan-500);
+  animation: breathing-glow 2.4s ease-in-out infinite; /* §7.2 */
+}
+.wordmark__text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--cyan-500);
+}
+
+.topbar__cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* 5.2 Cron chip */
+.cron-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(63, 214, 255, 0.08);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: var(--text-secondary);
+}
+.cron-chip:disabled { cursor: default; }
+.cron-chip__icon { width: 14px; height: 14px; color: var(--cyan-300); }
+.cron-chip__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+}
+.cron-chip__dot[data-status="idle"]    { background: var(--status-idle); }
+.cron-chip__dot[data-status="warning"] { background: var(--status-warning); }
+.cron-chip__dot[data-status="error"]   { background: var(--status-error); }
+.cron-chip__text {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cron-chip__caret { width: 12px; height: 12px; opacity: 0.5; }
+
+/* 5.3 Platform dots */
+.platforms { display: flex; align-items: center; gap: var(--space-4); }
+.platform {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.platform__glyph { width: 14px; height: 14px; }
+.platform__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex: 0 0 auto;
+}
+.platform__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+/* connected = steady cyan, no animation */
+.platform[data-state="connected"] .platform__dot { background: var(--status-idle); }
+.platform[data-state="connected"] .platform__glyph { color: var(--cyan-300); }
+/* disconnected = slate 40% */
+.platform[data-state="disconnected"] { opacity: 0.4; }
+.platform[data-state="disconnected"] .platform__dot { background: var(--status-offline); }
+.platform[data-state="disconnected"] .platform__glyph { color: var(--status-offline); }
+/* error = red single-pulse-then-hold (§7.3) */
+.platform[data-state="error"] .platform__dot {
+  background: var(--status-error);
+  animation: alert-pulse 1.8s ease-out 1 forwards; /* §7.3 */
+}
+.platform[data-state="error"] .platform__glyph { color: var(--status-error); }
+.platform[data-state="error"] .platform__label { color: var(--status-error); }
+
+/* 5.4 Shop pulse */
+.shop-pulse { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.shop-pulse__label {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+.shop-pulse__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+}
+
+/* 5.5 Clock */
+.clock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  min-width: 78px;
+  text-align: right;
+}
+
+/* ============================================================================
+   §6 CHAT PANEL
+   ========================================================================== */
+.chat {
+  grid-area: chat;
+  min-width: 480px;
+  margin: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-glass-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: panel-enter 220ms ease-out both; /* §7.7 */
+}
+
+/* 6.1 Header */
+.chat__header {
+  height: 48px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--panel-pad);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.chat__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cyan-300);
+}
+.chat__status { display: flex; align-items: center; gap: var(--space-2); }
+.chat__status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--status-idle);
+}
+.chat__status-word {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+}
+/* status-driven dot color */
+.chat[data-meeko="THINKING"] .chat__status-dot,
+.chat[data-meeko="RESPONDING"] .chat__status-dot {
+  background: var(--status-working);
+  animation: breathing-glow 2.4s ease-in-out infinite;
+}
+
+/* Message stream */
+.chat__stream {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--panel-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* §6 flatter backing so long responses stay high-contrast */
+  background: rgba(10, 17, 24, 0.55);
+}
+
+/* 6.2 Message bubbles */
+.msg { display: flex; flex-direction: column; max-width: 84%; animation: panel-enter 220ms ease-out both; }
+.msg__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.msg__body {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Bradley — right aligned, right border accent */
+.msg--user {
+  align-self: flex-end;
+  max-width: 72%;
+  align-items: flex-end;
+  border-right: 2px solid var(--cyan-500);
+  padding-right: var(--space-3);
+  text-align: right;
+}
+.msg--user .msg__label { color: var(--text-tertiary); font-family: var(--font-ui); }
+
+/* Meeko — left aligned, dimmed left border accent */
+.msg--meeko {
+  align-self: flex-start;
+  border-left: 2px solid rgba(63, 214, 255, 0.4);
+  padding-left: var(--space-3);
+}
+.msg--meeko .msg__label {
+  color: var(--cyan-300);
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+.msg__glyph { width: 8px; height: 8px; color: var(--cyan-300); }
+
+/* 6.3 Streaming cursor + flicker */
+.msg__cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  vertical-align: text-bottom;
+  background: var(--cyan-500);
+  margin-left: 1px;
+  animation: cursor-blink 1.06s step-end infinite; /* 530ms on / 530ms off */
+}
+/* the currently-revealing tail gets an energy flicker (§6.3) */
+.msg__body.is-streaming .stream-tail {
+  animation: hud-flicker 90ms steps(2, end) infinite;
+}
+.msg--streaming { cursor: pointer; } /* skip-ahead affordance (§6.3) */
+
+/* Thinking dots (§6.3) */
+.thinking { display: inline-flex; gap: 6px; align-items: center; }
+.thinking__dot {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--cyan-300);
+  animation: thinking-pulse 1.2s ease-in-out infinite;
+}
+.thinking__dot:nth-child(2) { animation-delay: 0.4s; }
+.thinking__dot:nth-child(3) { animation-delay: 0.8s; }
+
+/* 6.4 Input bar */
+.chat__input-bar {
+  flex: 0 0 auto;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-hairline);
+}
+.chat__input {
+  flex: 1 1 auto;
+  resize: none;
+  border: 1px solid transparent;
+  background: rgba(63, 214, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.4;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.chat__input::placeholder {
+  color: var(--text-tertiary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+.chat__input:focus {
+  outline: none;
+  border-color: var(--cyan-500);
+  box-shadow: 0 0 0 3px rgba(63, 214, 255, 0.12);
+}
+.chat__send {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(63, 214, 255, 0.12);
+  color: var(--cyan-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, box-shadow 120ms ease, transform 100ms ease;
+}
+.chat__send svg { width: 20px; height: 20px; }
+.chat__send:hover {
+  background: rgba(63, 214, 255, 0.22);
+  box-shadow: 0 0 12px var(--cyan-glow);
+}
+.chat__send:active { transform: scale(0.94); }
+
+/* ============================================================================
+   §8 ROSTER — RIGHT RAIL
+   ========================================================================== */
+.rail-r {
+  grid-area: rail-r;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--roster-gap);
+}
+.roster__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 var(--space-1) var(--space-1);
+}
+.roster__heading {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.roster__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--cyan-300);
+}
+.roster__stack { display: flex; flex-direction: column; gap: var(--roster-gap); }
+
+/* 8.1 Card anatomy */
+.card {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  padding: 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  animation: panel-enter 220ms ease-out both; /* §7.7 */
+  overflow: hidden;
+}
+
+/* Avatar (hexagon frame + monogram) */
+.card__avatar {
+  position: relative;
+  width: 56px; height: 56px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(63, 214, 255, 0.35);
+  pointer-events: none;
+}
+.card__hex {
+  width: 48px; height: 48px;
+  clip-path: url(#hexClip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(63, 214, 255, 0.08);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--cyan-100);
+}
+
+.card__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.card__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+.card__role {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.card__statusline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.card__status-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.card__status-word {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.card__task {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.card__task .task-prefix { color: var(--text-tertiary); }
+.card__time {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.card__ack {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 16px; height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--status-error);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.card__ack svg { width: 14px; height: 14px; }
+
+/* --- 8.2 State: Idle --- */
+.card[data-state="idle"] .card__ring {
+  border-color: rgba(63, 214, 255, 0.35);
+  animation: breathing-glow 2.4s ease-in-out infinite; /* §7.2 */
+}
+.card[data-state="idle"] .card__status-dot { background: var(--status-idle); }
+.card[data-state="idle"] .card__status-word { color: var(--status-idle); }
+
+/* --- 8.3 State: Working --- */
+.card[data-state="working"] {
+  background: var(--bg-glass-elevated);
+  border-color: var(--border-hairline-strong);
+}
+.card[data-state="working"] .card__ring {
+  border-color: var(--cyan-500);
+  animation: ring-ping 1.6s ease-out infinite; /* §7.4 */
+}
+.card[data-state="working"] .card__status-dot {
+  background: var(--status-working);
+  animation: ring-ping 1.6s ease-out infinite;
+}
+.card[data-state="working"] .card__status-word { color: var(--status-working); }
+/* 8.3 optional indeterminate progress underline */
+.card[data-state="working"]::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 2px; width: 40px;
+  background: linear-gradient(90deg, transparent, var(--cyan-500), transparent);
+  animation: progress-sweep 1.4s linear infinite; /* §8.3 */
+}
+
+/* --- 8.4 State: Error --- */
+.card[data-state="error"] {
+  border-color: rgba(255, 59, 78, 0.5);
+}
+.card[data-state="error"] .card__ring {
+  border-color: var(--status-error);
+  animation: alert-pulse 1.8s ease-out 1 forwards; /* §7.3 */
+}
+.card[data-state="error"] .card__status-dot { background: var(--status-error); }
+.card[data-state="error"] .card__status-word { color: var(--status-error); }
+.card[data-state="error"] .card__task { color: var(--status-error); }
+.card[data-state="error"] .card__ack { display: inline-flex; }
+
+/* --- 8.5 State: Offline --- */
+.card[data-state="offline"] { opacity: 0.65; }
+.card[data-state="offline"] .card__ring {
+  border-style: dashed;
+  border-color: var(--status-offline);
+  animation: none;
+}
+.card[data-state="offline"] .card__hex { filter: grayscale(1) opacity(0.5); }
+.card[data-state="offline"] .card__status-dot { background: var(--status-offline); }
+.card[data-state="offline"] .card__status-word { color: var(--status-offline); }
+
+/* ============================================================================
+   §3.1 FOOTER
+   ========================================================================== */
+.footer {
+  grid-area: footer;
+  height: var(--footer-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-6);
+  background: var(--bg-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--border-hairline);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+.footer__item { display: inline-flex; align-items: center; gap: 6px; }
+.footer__brand { color: var(--text-secondary); font-weight: 600; }
+.footer__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--status-success); }
+.footer__clock { margin-left: auto; font-family: var(--font-mono); color: var(--text-secondary); }
+
+/* ============================================================================
+   §7 KEYFRAMES
+   ========================================================================== */
+
+/* 7.1 Radar sweep */
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* 7.2 Breathing glow (2.4s idle heartbeat) */
+@keyframes breathing-glow {
+  0%   { opacity: 0.55; box-shadow: 0 0 4px var(--cyan-glow); }
+  50%  { opacity: 1;    box-shadow: 0 0 12px var(--cyan-glow); }
+  100% { opacity: 0.55; box-shadow: 0 0 4px var(--cyan-glow); }
+}
+
+/* 7.3 Alert pulse — 3 rapid pulses over 1.8s then hold at 40% */
+@keyframes alert-pulse {
+  0%    { opacity: 1;   box-shadow: 0 0 16px var(--status-error); }
+  16%   { opacity: 0.4; box-shadow: 0 0 4px var(--status-error); }
+  33%   { opacity: 1;   box-shadow: 0 0 16px var(--status-error); }
+  50%   { opacity: 0.4; box-shadow: 0 0 4px var(--status-error); }
+  66%   { opacity: 1;   box-shadow: 0 0 16px var(--status-error); }
+  83%   { opacity: 0.4; box-shadow: 0 0 4px var(--status-error); }
+  100%  { opacity: 0.4; box-shadow: 0 0 6px var(--status-error); }
+}
+
+/* 7.4 Active-working ring ping (1.6s sonar) */
+@keyframes ring-ping {
+  0%   { box-shadow: 0 0 0 0 rgba(63, 214, 255, 0.5); }
+  100% { box-shadow: 0 0 0 8px rgba(63, 214, 255, 0); }
+}
+
+/* 7.6 Scanline drift */
+@keyframes scanline-drift {
+  from { background-position-y: 0; }
+  to   { background-position-y: 24px; } /* multiple of 3px tile */
+}
+
+/* 7.7 Panel entrance */
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 6.3 Cursor blink (530ms on / 530ms off → 1.06s step-end) */
+@keyframes cursor-blink {
+  0%, 50%   { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+/* 6.3 HUD flicker on revealing chars */
+@keyframes hud-flicker {
+  0%   { text-shadow: 0 0 6px rgba(63, 214, 255, 0.6); }
+  50%  { text-shadow: 0 0 6px rgba(63, 214, 255, 1.0); }
+  100% { text-shadow: 0 0 6px rgba(63, 214, 255, 0.6); }
+}
+
+/* 6.3 Thinking dots */
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+
+/* 8.3 Progress sweep underline */
+@keyframes progress-sweep {
+  from { transform: translateX(-40px); }
+  to   { transform: translateX(320px); }
+}
+
+/* ============================================================================
+   §3.2 BREAKPOINTS
+   ========================================================================== */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .shell { grid-template-columns: 0 1fr 260px; --rail-r-width: 260px; }
+}
+
+@media (max-width: 1023px) and (min-width: 768px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-height) auto 1fr var(--footer-height);
+    grid-template-areas:
+      "topbar"
+      "rail-r"
+      "chat"
+      "footer";
+  }
+  .rail-r {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .roster__header { display: none; }
+  .card { flex-direction: column; align-items: center; width: 96px; flex: 0 0 96px; text-align: center; }
+  .card__body { align-items: center; }
+  .card__task, .card__role, .card__time { display: none; }
+  .chat { min-width: 0; }
+  .topbar__cluster { overflow-x: auto; }
+}
+
+@media (max-width: 767px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-height) auto 1fr var(--footer-height);
+    grid-template-areas:
+      "topbar"
+      "rail-r"
+      "chat"
+      "footer";
+  }
+  .topbar { padding: 0 var(--space-3); }
+  .topbar__cluster { gap: var(--space-3); overflow-x: auto; }
+  .shop-pulse, .cron-chip__text { display: none; }
+  .rail-r { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: var(--space-2); }
+  .roster__header { display: none; }
+  .card {
+    flex-direction: column;
+    width: 56px; flex: 0 0 56px;
+    padding: 6px;
+  }
+  .card__body { display: none; }
+  .chat { margin: var(--space-2); min-width: 0; }
+  .chat__input-bar { position: sticky; bottom: 0; }
+}
+
+/* ============================================================================
+   §7.8 / §10 REDUCED MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .ambient__radar,
+  .ambient__scanline { animation: none; }
+  .ambient__particles { display: none; }
+
+  .wordmark__dot,
+  .card__ring,
+  .card__status-dot,
+  .chat[data-meeko] .chat__status-dot { animation: none !important; }
+
+  /* working ring becomes static solid outline, no ping */
+  .card[data-state="working"] .card__ring { box-shadow: none; }
+  .card[data-state="working"]::after { animation: none; display: none; }
+
+  /* error goes straight to steady badge, no repeated pulse */
+  .card[data-state="error"] .card__ring,
+  .platform[data-state="error"] .platform__dot {
+    animation: none !important;
+    box-shadow: 0 0 6px var(--status-error);
+    opacity: 0.9;
+  }
+
+  /* typewriter kept but flicker glow dropped (§7.8) */
+  .msg__body.is-streaming .stream-tail { animation: none; text-shadow: none; }
+  .msg__cursor { animation: none; opacity: 1; }
+
+  .thinking__dot { animation: none; opacity: 0.7; }
+  .card, .chat, .msg { animation: none; }
+}

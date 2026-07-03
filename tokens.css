@@ -1,0 +1,66 @@
+/* ============================================================================
+   tokens.css — Design tokens for the Meeko Command Console
+   Derived verbatim from JARVIS-Command-Console-UIUX-Spec-v1.md §1, §2, §3.3
+   ========================================================================== */
+
+:root {
+  /* ---- 1.1 Core surface colors ---------------------------------------- */
+  --bg-void: #04070A;
+  --bg-base: #0A1118;
+  --bg-glass: rgba(15, 27, 36, 0.62);
+  --bg-glass-elevated: rgba(20, 34, 44, 0.72);
+  --border-hairline: rgba(93, 220, 255, 0.16);
+  --border-hairline-strong: rgba(93, 220, 255, 0.35);
+
+  /* ---- 1.2 Primary accent — electric cyan ----------------------------- */
+  --cyan-100: #E4FBFF;
+  --cyan-300: #7FE9FF;
+  --cyan-500: #3FD6FF;
+  --cyan-600: #20B8E8;
+  --cyan-glow: rgba(63, 214, 255, 0.45);
+
+  /* ---- 1.3 Status colors (semantic) ----------------------------------- */
+  --status-idle: rgba(63, 214, 255, 0.55); /* cyan-500 dimmed to 55% */
+  --status-working: #3FD6FF;
+  --status-success: #4AFFB0;
+  --status-warning: #FFB020;
+  --status-error: #FF3B4E;
+  --status-offline: #4A5A66;
+
+  /* ---- 1.4 Text ------------------------------------------------------- */
+  --text-primary: #EAF6FA;
+  --text-secondary: #9FC4D1;
+  --text-tertiary: #5C7A87;
+  --text-on-glow: #04070A;
+
+  /* ---- 2. Typography — families ---------------------------------------- */
+  --font-display: 'Orbitron', 'Exo 2', sans-serif;
+  --font-mono: 'Share Tech Mono', 'Consolas', monospace;
+  --font-ui: 'Exo 2', 'Segoe UI', sans-serif;
+
+  /* ---- 2. Type scale (rem, base 16px) --------------------------------- */
+  --text-display: 1.75rem;   /* 28px, lh 1.2, Orbitron 700 */
+  --text-h2: 1.125rem;       /* 18px, lh 1.3, Orbitron 500 */
+  --text-label: 0.6875rem;   /* 11px, lh 1.4, Orbitron 500 uppercase 0.12em */
+  --text-body: 0.9375rem;    /* 15px, lh 1.55, Share Tech Mono */
+  --text-chat: 0.9375rem;    /* 15px, lh 1.6, Share Tech Mono */
+  --text-meta: 0.75rem;      /* 12px, lh 1.4, Exo 2 400 */
+  --text-ui: 0.8125rem;      /* 13px, lh 1.4, Exo 2 600 */
+
+  /* ---- 3.3 Spacing scale (4px base unit) ------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --panel-pad: 20px;
+  --roster-gap: 12px;
+
+  /* ---- 3. Layout dimensions ------------------------------------------- */
+  --rail-l-width: 280px;
+  --rail-r-width: 320px;
+  --topbar-height: 64px;
+  --footer-height: 40px;
+}

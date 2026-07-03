@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MEEKO // Command Console</title>
+
+  <!-- Google Fonts: Orbitron, Share Tech Mono, Exo 2 (spec §2) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@400;600;700&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ======================================================================
+       INLINE SVG SPRITE (spec §9) — custom, single-color, currentColor,
+       2px stroke, 24×24 viewBox, angular/chamfered geometry.
+       ==================================================================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- Hexagon avatar frame / clip shape (§9.2) -->
+      <clipPath id="hexClip" clipPathUnits="objectBoundingBox">
+        <polygon points="0.5,0 0.933,0.25 0.933,0.75 0.5,1 0.067,0.75 0.067,0.25" />
+      </clipPath>
+
+      <!-- Send / transmit glyph — angular chevron-in-brackets (§9) -->
+      <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+        <path d="M4 12 L20 12 M14 6 L20 12 L14 18" />
+      </symbol>
+
+      <!-- Signal glyph (diamond) — Meeko message label prefix (§6.2, §9) -->
+      <symbol id="icon-signal" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <polygon points="12,3 21,12 12,21 3,12" />
+      </symbol>
+
+      <!-- Cron / clock hexagon icon (§9) -->
+      <symbol id="icon-cron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+        <polygon points="12,2 21,7 21,17 12,22 3,17 3,7" />
+        <path d="M12 8 L12 12 L15 14" />
+      </symbol>
+
+      <!-- Chevron / expand caret (§9) -->
+      <symbol id="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+        <path d="M6 9 L12 15 L18 9" />
+      </symbol>
+
+      <!-- ✕ dismiss glyph (§9, §8.4) -->
+      <symbol id="icon-dismiss" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+        <path d="M6 6 L18 18 M18 6 L6 18" />
+      </symbol>
+
+      <!-- Platform: Slack (simplified monochrome mark) -->
+      <symbol id="icon-slack" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M6 15a2 2 0 1 1-2-2h2zm1 0a2 2 0 0 1 4 0v5a2 2 0 1 1-4 0zM9 6a2 2 0 1 1 2 2H9zm0 1a2 2 0 0 1 0 4H4a2 2 0 1 1 0-4zm9 2a2 2 0 1 1 2 2h-2zm-1 0a2 2 0 0 1-4 0V4a2 2 0 1 1 4 0zm-2 9a2 2 0 1 1-2-2h2zm0-1a2 2 0 0 1 0-4h5a2 2 0 1 1 0 4z" />
+      </symbol>
+
+      <!-- Platform: GitHub (simplified monochrome mark) -->
+      <symbol id="icon-github" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.03 10.03 0 0 0 22 12.25C22 6.58 17.52 2 12 2z" />
+      </symbol>
+
+      <!-- Platform: Etsy (simplified monochrome "Et" mark) -->
+      <symbol id="icon-etsy" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M9.6 5.2v5.1s1.9.05 2.9-.05c.75-.1 1.2-.18 1.4-1.4h.9v4.1h-.9c-.2-1.2-.65-1.3-1.4-1.4-1-.1-2.9-.05-2.9-.05v4c0 .8.4 1.15 1.3 1.15h2.6c1.9 0 2.5-.55 3.5-2.6h.85l-.7 3.9H5.5v-.9c1.35-.1 1.7-.25 1.7-1.35V7.7c0-1.1-.35-1.25-1.7-1.35v-.9h9.9l.15 3.4h-.85c-.55-1.85-1.15-2.25-2.7-2.25H9.6z" />
+      </symbol>
+
+      <!-- Gauge / dial arc placeholder marker (§9.1) -->
+      <symbol id="icon-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round">
+        <path d="M4 18 A9 9 0 1 1 20 18" />
+        <path d="M12 12 L16 8" />
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ======================================================================
+       AMBIENT BACKGROUND SYSTEM (spec §4) — fixed, pointer-events:none, z0
+       ==================================================================== -->
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient__grid"></div>
+    <div class="ambient__scanline"></div>
+    <div class="ambient__radar"></div>
+    <canvas class="ambient__particles" id="particle-canvas"></canvas>
+  </div>
+
+  <!-- ======================================================================
+       APP SHELL — 3-column grid (spec §3.1)
+       ==================================================================== -->
+  <div class="shell">
+
+    <!-- ---- TOP STATUS BAR (spec §5) ------------------------------------ -->
+    <header class="topbar" role="banner">
+      <!-- 5.1 Wordmark -->
+      <div class="topbar__wordmark">
+        <span class="wordmark__dot" aria-hidden="true"></span>
+        <span class="wordmark__text">MEEKO</span>
+      </div>
+
+      <div class="topbar__cluster">
+        <!-- 5.2 Cron job status chip -->
+        <button class="cron-chip" type="button" disabled
+          title="Cron jobs (expand — Phase 2)" aria-label="Cron jobs: 4 active, all healthy">
+          <svg class="cron-chip__icon" aria-hidden="true"><use href="#icon-cron" /></svg>
+          <span class="cron-chip__dot" data-status="idle" aria-hidden="true"></span>
+          <span class="cron-chip__text">CRON · 4 ACTIVE</span>
+          <svg class="cron-chip__caret" aria-hidden="true"><use href="#icon-chevron" /></svg>
+        </button>
+
+        <!-- 5.3 Platform connection dots -->
+        <div class="platforms" role="group" aria-label="Platform connections">
+          <div class="platform" data-state="connected">
+            <svg class="platform__glyph" aria-hidden="true"><use href="#icon-slack" /></svg>
+            <span class="platform__dot" aria-hidden="true"></span>
+            <span class="platform__label">SLACK</span>
+          </div>
+          <div class="platform" data-state="connected">
+            <svg class="platform__glyph" aria-hidden="true"><use href="#icon-github" /></svg>
+            <span class="platform__dot" aria-hidden="true"></span>
+            <span class="platform__label">GITHUB</span>
+          </div>
+          <div class="platform" data-state="error">
+            <svg class="platform__glyph" aria-hidden="true"><use href="#icon-etsy" /></svg>
+            <span class="platform__dot" aria-hidden="true"></span>
+            <span class="platform__label">ETSY</span>
+          </div>
+        </div>
+
+        <!-- 5.4 Shop pulse placeholder -->
+        <div class="shop-pulse" title="Shop pulse — live data in Phase 2">
+          <span class="shop-pulse__label">SHOP PULSE</span>
+          <span class="shop-pulse__value">— —</span>
+        </div>
+
+        <!-- 5.5 Clock -->
+        <div class="clock" id="clock" aria-label="Local time" role="timer">--:--:--</div>
+      </div>
+    </header>
+
+    <!-- ---- LEFT RAIL (spec §3.1 — Phase 1 placeholder empty state) ----- -->
+    <aside class="rail-l" id="rail-l" aria-label="Session log">
+      <div class="rail-l__empty">
+        <div class="rail-l__title">SESSION LOG</div>
+        <div class="rail-l__sub">coming soon</div>
+      </div>
+    </aside>
+
+    <!-- ---- CENTER CHAT PANEL (spec §6) --------------------------------- -->
+    <main class="chat" aria-label="Command channel with Meeko">
+      <!-- 6.1 Panel header -->
+      <div class="chat__header">
+        <span class="chat__title">MEEKO // COMMAND CHANNEL</span>
+        <div class="chat__status">
+          <span class="chat__status-dot" aria-hidden="true"></span>
+          <span class="chat__status-word" id="meeko-status">STANDBY</span>
+        </div>
+      </div>
+
+      <!-- Message stream (not itself a live region — see #chat-live below) -->
+      <div class="chat__stream" id="chat-stream" aria-label="Conversation">
+        <!-- messages injected / seeded by app.js -->
+      </div>
+
+      <!-- §10: single polite live region — gets only the FINAL Meeko text,
+           never per-character updates -->
+      <div class="sr-only" id="chat-live" aria-live="polite" aria-atomic="true"></div>
+
+      <!-- 6.4 Input bar -->
+      <form class="chat__input-bar" id="chat-form">
+        <textarea class="chat__input" id="chat-input" rows="1"
+          placeholder="Talk to Meeko…" aria-label="Message to Meeko"
+          autocomplete="off"></textarea>
+        <button class="chat__send" type="submit" aria-label="Send message" title="Send (Enter)">
+          <svg aria-hidden="true"><use href="#icon-send" /></svg>
+        </button>
+      </form>
+    </main>
+
+    <!-- ---- RIGHT RAIL — SPECIALIST ROSTER (spec §8) -------------------- -->
+    <aside class="rail-r" aria-label="Specialist roster">
+      <div class="roster__header">
+        <span class="roster__heading">SPECIALIST ROSTER</span>
+        <span class="roster__count" id="roster-count">— ONLINE</span>
+      </div>
+      <div class="roster__stack" id="roster-stack">
+        <!-- cards injected by app.js -->
+      </div>
+    </aside>
+
+    <!-- ---- FOOTER STRIP (spec §3.1) ------------------------------------ -->
+    <footer class="footer">
+      <span class="footer__item footer__brand">MEEKO COMMAND CONSOLE</span>
+      <span class="footer__item">
+        <span class="footer__dot" data-status="ok"></span> LINK STABLE
+      </span>
+      <span class="footer__item">BUILD v1.0.0-phase1</span>
+      <span class="footer__item footer__clock" id="footer-clock">--:--:--</span>
+    </footer>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
